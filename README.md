@@ -38,8 +38,8 @@ pip install beautifulsoup4 requests pandas
 使用以下指令來匯入稍後將使用到的套件：
 
 ```python
-import requests
-from bs4 import BeautifulSoup
+import urllib.request as request 
+import bs4
 import csv
 from datetime import datetime
 import os
