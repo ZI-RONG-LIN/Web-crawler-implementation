@@ -71,108 +71,165 @@ root=bs4.BeautifulSoup(data, "html.parser")
 ```
 
 #### 撈取特定網站內容
-接著為了確認是否可以順利取得網頁的資訊，透過解析網頁的標籤位置，印出看板標題及文章標題
+接著為了確認是否可以順利取得網頁的資訊，透過解析網頁的標籤位置，印出看板標題及文章標題。
 ```python
-#印出看板標題
-print(root.title.string)#尋找"title"標籤字串
+#尋找"title"標籤字串，印出看板標題
+print(root.title.string)
 
-#印出文章標題
-titles=root.find_all("div", class_="title") #尋找所有class="title"的div標籤
+#尋找所有class="title"的div標籤，印出文章標題
+titles=root.find_all("div", class_="title") 
 for title in titles:
-    if title.a != None: #如果標題包含a標籤 (沒有被刪除), 印出來
+    if title.a != None: #只印出未被刪除的文章
         print(title.a.string)
 ```
 <p align="center">
 <img src="https://github.com/p56071078/Web-crawler-implementation/blob/main/img/print%20title.png" width="550" height="500">
 </p>
 
+#### 取得文章連結
+接著為了後續可以透過迴圈取得每篇文章的內容、作者、推文等資訊，因此可以先把文章連結事先撈取出來並存在一個空的陣列中。
 
+```python
+#尋找所有class="r-ent"的div標籤，印出文章連結
+rent = root.find_all('div',class_='r-ent')
 
+#建立一個空的陣列，把抓到的文章連結一個一個添加進去
+link=[]
+for title in rent:
+    #由於有些被刪除的文章會抓不到連結，所以把抓不到被刪除的文章濾掉
+    if title.a != None:
+        link.append("https://www.ptt.cc"+title.a.get("href"))
+print(link)
+```
+#### 依序爬取每篇文章之標題、作者、日期、內文、推文
+接著透過迴圈取得多頁文章的內容、作者、推文等資訊，由於後續希望將所有爬取的結果一筆一筆加進 DataFrame 並匯出成 csv 檔，因此我會把爬取到的資訊分別存在不同的陣列中，再 append 到 DataFrame 裡頭存放。
+
+結合前面的步驟，最後完成的程式語法如下：
+```python
+#建立一個空的 DataFrame，後續會一筆一筆將爬取到的資料加進 DataFrame 
+dataset = pd.DataFrame()
+
+#建立迴圈，可爬取多頁內容
+for page in range(1,4): #可依需求調整要爬取的頁數
+    search_keyword = 'Nissan' #可依需求調整關鍵字
+    #模擬 Chrome 瀏覽器的 User-Agent
+    src='https://www.ptt.cc/bbs/car/search?page=' + str(page) + '&q='+ search_keyword 
+    requestUA=request.Request(src, headers={
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36"
+    })
+    with request.urlopen(requestUA) as response:
+        data=response.read().decode("utf-8")
+    root=bs4.BeautifulSoup(data, "html.parser") #讓BeautifulSoup協助解析HTML格式文件
+    #尋找"title"標籤字串，印出看板標題
+    print(root.title.string)
+
+    #尋找所有class="title"的div標籤，印出文章標題
+    titles=root.find_all("div", class_="title") 
+    for title in titles:
+        if title.a != None: #只印出未被刪除的文章
+            print(title.a.string)
+
+    #抓取看板文章的連結
+    rent = root.find_all('div',class_='r-ent')
+    #建立一個空的陣列，把抓到的文章連結一個一個添加進去
+    link=[]
+    for title in rent:
+        #由於有些被刪除的文章會抓不到連結，所以把抓不到被刪除的文章濾掉
+        if title.a != None:
+            link.append("https://www.ptt.cc"+title.a.get("href"))
+    #print(link)
+
+    #透過文章連結，抓取文章內容
+    for websites in link:
+        requestUA=request.Request(websites, headers={
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36"
+        })
+        with request.urlopen(requestUA) as response:
+            data=response.read().decode("utf-8")
+        root=bs4.BeautifulSoup(data, "html.parser") #讓BeautifulSoup協助解析HTML格式文件
+
+        header = root.find_all('span','article-meta-value')
+        if header != []:
+
+        # 作者
+            author = header[0].text
+        #可用此語法印出作者:print("Author : "+ author+'\n')
+
+        # 日期
+            date = header[3].text
+        #可用此語法印出日期:print("Date : "+ date+'\n')
+
+        #文章主題
+        titles=root.find_all("div", id_="main-content") 
+        for title in titles:
+            if title.a != None: #如果標題包含a標籤 (沒有被刪除), 印出來
+                print(title.a.string)
+
+        #文章內容
+        main_container = root.find(id='main-container')
+        # 把所有文字都抓出來
+        if main_container != " ":
+            all_text = main_container.text
+            # 把整個內容切割透過 "-- " 切割成2個陣列
+            pre_text = all_text.split('--')[0]
+
+            # 把每段文字 根據 '\n' 切開
+            texts = pre_text.split('\n')
+            # 如果你爬多篇你會發現 
+            contents = texts[2:]
+            # 內容
+            content = '\n'.join(contents)
+
+        #可用此語法印出文章內容:print(content)
+
+        #推文
+        pushs=root.find_all(class_="f3 push-content") 
+        #可用此語法印出推文:print(pushs)
+
+        #推文ID
+        push_userid=root.find_all(class_="f3 hl push-userid")
+        #可用此語法印出推文ID:print(push_userid)
+
+        #將推文ID存入空的陣列，排除掉已被刪除的推文
+        id=[]
+        for userid in push_userid:
+            if userid != None: 
+                id.append(userid.string)
+        #可用此語法印出結果:print(userid.string) 
+
+        #將推文內容存入空的陣列，排除掉已被刪除的推文
+        comment=[]
+        for push in pushs:
+            if push != None: 
+                comment.append(push.string)
+        #可用此語法印出結果:print(push.string) 
+
+        #為提升可讀性，將推文ID跟內容用迴圈整合在一起，存入空的陣列，排除掉已被刪除的推文
+        id_comment=[]
+        for i in range(len(id)):
+            if id[i] and comment[i] != None:
+                id_comment.append(id[i]+comment[i])
+            #print(id_comment)
+
+        #透過換行符號分隔每筆推文，組合成多行的字符串，以便更容易地閱讀或保存。
+        cell_value = '\n'.join(id_comment)
+
+        #將爬取到的資料依序加進 DataFrame
+        dataset = dataset.append(pd.DataFrame(data={'i': page,
+                                                        'date':date,
+                                                        'title':title.a.string,
+                                                        'link':websites,
+                                                        'author':author,
+                                                        'content':content,
+                                                        'comment':cell_value
+                                                        }, index = [0]), ignore_index = True)
+
+#將 DataFrame 匯出成csv，可自行調整路徑跟名稱
+path='希望存放的路徑'
+dataset.to_csv(path + '/nissan_web_crawler.csv', index=False, encoding='utf-8')
+```
 
 ## 輿情分析
 ### 環境安裝
 ### 語法
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 一级标题  
-## 二级标题  
-### 三级标题  
-#### 四级标题  
-##### 五级标题  
-###### 六级标题 
-二、编辑基本语法  
-1、字体格式强调
- 我们可以使用下面的方式给我们的文本添加强调的效果
-*强调*  (示例：斜体)  
- _强调_  (示例：斜体)  
-**加重强调**  (示例：粗体)  
- __加重强调__ (示例：粗体)  
-***特别强调*** (示例：粗斜体)  
-___特别强调___  (示例：粗斜体)  
-2、代码  
-`<hello world>`  
-3、代码块高亮  
-```
-@Override
-protected void onDestroy() {
-    EventBus.getDefault().unregister(this);
-    super.onDestroy();
-}
-```  
-4、表格 （建议在表格前空一行，否则可能影响表格无法显示）
-  
- 表头  | 表头  | 表头
- ---- | ----- | ------  
- 单元格内容  | 单元格内容 | 单元格内容 
- 单元格内容  | 单元格内容 | 单元格内容  
-  
-5、其他引用
-图片  
-![图片名称](https://www.baidu.com/img/bd_logo1.png)  
-链接  
-[链接名称](https://www.baidu.com/)    
-6、列表 
-1. 项目1  
-2. 项目2  
-3. 项目3  
-   * 项目1 （一个*号会显示为一个黑点，注意⚠️有空格，否则直接显示为*项目1） 
-   * 项目2   
-### Place 1
-
-使用markdown语法：[点击跳转](#top)
-直接回车不能换行，  
-可以在上一行文本后面补两个空格，  
-这样下一行的文本就换行了。
-或者就是在两行文本直接加一个空行。
-也能实现换行效果，不过这个行间距有点大。  
- 
-8、引用
-> 第一行引用文字  
-> 第二行引用文字
-
-## Specification
-Example text blah. Example text blah. Example text blah. Example text blah. 
-Example text blah. Example text blah. Example text blah. Example text blah. 
-Example text blah. Example text blah. Example text blah. Example text blah. 
-Example text blah. Example text blah. 
-
-## Dependencies Title
-Example text blah. Example text blah. Example text blah. Example text blah. 
-Example text blah. Example text blah. Example text blah. Example text blah. 
-Example text blah. Example text blah. Example text blah. Example text blah. 
-Example text blah. Example text blah. 
