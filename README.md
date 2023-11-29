@@ -251,8 +251,5 @@ for page in range(1,4): #可依需求調整要爬取的頁數
 path='希望存放的路徑'
 dataset.to_csv(path + '/nissan_web_crawler.csv', index=False, encoding='utf-8')
 ```
-
-## 輿情分析
-### 環境安裝
-### 語法
-
+## 未來規劃
+後續將會陸續把輿情分析部分及API的練習補上~
