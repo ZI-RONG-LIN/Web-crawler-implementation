@@ -44,6 +44,7 @@ import csv
 from datetime import datetime
 import os
 import pandas as pd
+from collections import defaultdict
 ```
 #### 讀取網站資料
 在進行網頁爬蟲時，我們會透過模擬瀏覽器發送 HTTP 請求獲取 PTT CAR 版中包含指定關鍵字的文章列表的 HTML 內容。這個函式會返回一個 response 物件，裡頭包含了網頁的回應內容。接著我們使用 BeautifulSoup 解析這個 HTML 內容，方便後續的資料提取。
