@@ -102,7 +102,7 @@ for title in rent:
 print(link)
 ```
 #### 依序爬取每篇文章之標題、作者、日期、內文、推文
-接著透過迴圈取得多頁文章的內容、作者、推文等資訊，由於後續希望將所有爬取的結果一筆一筆加進 DataFrame 並匯出成 csv 檔，因此我會把爬取到的資訊分別存在不同的陣列中，再 append 到 DataFrame 裡頭存放。
+接著透過迴圈取得多頁文章的內容、作者、推文等資訊，由於後續希望將所有爬取的結果一筆一筆加進 DataFrame 並匯出成 csv 檔，因此我會把爬取到的資訊分別存在不同的陣列中，另外由於PTT留言會有字數限制，因此會再針對留言進行加工，將相同帳號的留言合併後，再 append 到 DataFrame 裡頭存放。
 
 結合前面的步驟，最後完成的程式語法如下：
 ```python
@@ -211,18 +211,41 @@ for page in range(1,4): #可依需求調整要爬取的頁數
                 id_comment.append(id[i]+comment[i])
             #print(id_comment)
 
-        #透過換行符號分隔每筆推文，組合成多行的字符串，以便更容易地閱讀或保存。
-        cell_value = '\n'.join(id_comment)
+        # 由於PTT留言會有字數限制,因此這邊會再針對留言進行加工,將相同帳號的留言合併
+        comments = id_comment
 
-        #將爬取到的資料依序加進 DataFrame
+        # 將留言合併
+        merged_comments = defaultdict(list)
+
+        for comment in comments:
+            # 使用冒號分割帳號和留言內容
+            parts = comment.split(':')
+            if len(parts) == 2:
+                username = parts[0].strip()
+                message = parts[1].strip()
+
+                # 將留言加入字典中的相應帳號
+                merged_comments[username].append(message)
+                
+        # 將合併的留言以迴圈加進陣列中
+        formatted_comments = []
+        for username, messages in merged_comments.items():
+            formatted_comments.append(f"{username} : {''.join(messages)}")
+
+        #可用此語法印出合併後的留言
+        #for comment in formatted_comments:
+            #print(comment)
+            
+        format_comments = '\n'.join(formatted_comments)
+
         dataset = dataset.append(pd.DataFrame(data={'i': page,
-                                                        'date':date,
-                                                        'title':title.a.string,
-                                                        'link':websites,
-                                                        'author':author,
-                                                        'content':content,
-                                                        'comment':cell_value
-                                                        }, index = [0]), ignore_index = True)
+                                                    'date':date,
+                                                    'title':title.a.string,
+                                                    'link':websites,
+                                                    'author':author,
+                                                    'content':content,
+                                                    'comment':format_comments
+                                                    }, index = [0]), ignore_index = True)
 
 #將 DataFrame 匯出成csv，可自行調整路徑跟名稱
 path='希望存放的路徑'
